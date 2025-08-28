@@ -53,3 +53,6 @@ springdoc:
   api-docs:
     enabled: true
     path: /v3/api-docs
+virustotal:
+  api:
+   key: "5d3eb223bebcdbc022a55472cec9269a8fee2021efad152a728267e1bce7d420"
