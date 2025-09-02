@@ -1,8 +1,10 @@
 package com.company.SecureTrack_backend.util;
 
+import org.springframework.stereotype.Component;
+
 import java.io.FileInputStream;
 import java.security.MessageDigest;
-
+@Component
 public class HashUtil {
     public static String sha256OfFile(String filePath) throws Exception {
         MessageDigest digest = MessageDigest.getInstance("SHA-256");

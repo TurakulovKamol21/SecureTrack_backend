@@ -1,9 +1,13 @@
 package com.company.SecureTrack_backend.service.impl;
 
+import com.company.SecureTrack_backend.dto.LinkAnalysesResultDto;
+import com.company.SecureTrack_backend.repository.LinkAnalyzeResultRepository;
 import com.company.SecureTrack_backend.service.VirusTotalService;
+import com.company.SecureTrack_backend.service.mapper.LinkAnalyzeResultMapper;
 import com.company.SecureTrack_backend.util.ResponseDto;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import lombok.RequiredArgsConstructor;
 import okhttp3.*;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
@@ -14,8 +18,11 @@ import java.io.IOException;
 import java.util.Base64;
 
 @Component
+@RequiredArgsConstructor
 public class VirusTotalServiceImpl implements VirusTotalService {
 
+    private final LinkAnalyzeResultRepository linkAnalyzeResultRepository;
+    private final LinkAnalyzeResultMapper linkAnalyzeResultMapper;
     @Value("${virustotal.api.key}")
     private String apiKey;
 
@@ -26,13 +33,11 @@ public class VirusTotalServiceImpl implements VirusTotalService {
     private final OkHttpClient client = new OkHttpClient();
     private final ObjectMapper mapper = new ObjectMapper();
 
-    // Yangi: URL -> Base64 id generator
     private String encodeUrl(String url) {
         return Base64.getUrlEncoder().withoutPadding().encodeToString(url.getBytes());
     }
 
 
-    // Yangi scan yuborish
     @Override
     public String submitUrlForScan(String url) throws Exception {
         RequestBody formBody = new FormBody.Builder()
@@ -52,9 +57,8 @@ public class VirusTotalServiceImpl implements VirusTotalService {
         }
     }
 
-    // Analyses endpoint orqali tekshirish
     @Override
-    public ResponseEntity<ResponseDto<String>> checkLink(String analysisId) throws Exception {
+    public ResponseEntity<ResponseDto<LinkAnalysesResultDto>> checkLink(String analysisId, String url) throws Exception {
         Request request = new Request.Builder()
                 .url(ANALYSIS_ENDPOINT + analysisId)
                 .get()
@@ -66,16 +70,19 @@ public class VirusTotalServiceImpl implements VirusTotalService {
             JsonNode root = mapper.readTree(jsonResponse);
             JsonNode stats = root.path("data").path("attributes").path("stats");
 
+            LinkAnalysesResultDto dto = mapper.convertValue(stats, LinkAnalysesResultDto.class);
+            dto.setLink(url);
+            linkAnalyzeResultRepository.save(linkAnalyzeResultMapper.toModel(dto));
             return ResponseEntity.ok(
-                    ResponseDto.<String>builder()
+                    ResponseDto.<LinkAnalysesResultDto>builder()
                             .httpStatus(HttpStatus.OK)
-                            .data(stats.toString())
+                            .data(dto)
                             .build()
             );
         }
     }
 
-    // Fayl (APK hash) ni tekshirish
+
     @Override
     public ResponseEntity<ResponseDto<String>> checkApk(String apkHash) {
         Request request = new Request.Builder()
@@ -88,6 +95,7 @@ public class VirusTotalServiceImpl implements VirusTotalService {
             String jsonResponse = response.body().string();
             return ResponseEntity.ok(
                     ResponseDto.<String>builder()
+                            .message("Result from Virus Total")
                             .httpStatus(HttpStatus.OK)
                             .data(jsonResponse)
                             .build()
